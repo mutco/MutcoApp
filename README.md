@@ -72,4 +72,4 @@ Pengujian yang tersedia mencakup pemotongan gambar, decoder keluaran YOLO, perhi
 | `android/` | Konfigurasi dan integrasi Android |
 | `tools/` | Utilitas pendukung pengembangan |
 
-Target rilis saat ini adalah Android. Folder platform lain berasal dari proyek Flutter; keberadaannya tidak berarti seluruh fitur telah diverifikasi pada platform tersebut. Folder lokal `FileApp/` tidak dilacak oleh Git dan tidak diperlukan untuk menjalankan aplikasi.
+Target rilis saat ini adalah Android. Folder platform lain berasal dari proyek Flutter; keberadaannya tidak berarti seluruh fitur telah diverifikasi pada platform tersebut.
