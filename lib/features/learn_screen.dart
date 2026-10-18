@@ -34,6 +34,11 @@ class LearnScreen extends StatelessWidget {
               ? 'Defect value is determined from a 300 g sample. If one bean has multiple defects, use its highest defect value.'
               : 'Nilai cacat ditentukan dari contoh uji seberat 300 g. Jika satu biji memiliki lebih dari satu jenis cacat, gunakan nilai cacat yang paling besar.',
               style: TextStyle(color: p.secondary, fontSize: 15, height: 1.4)),
+            const SizedBox(height: 10),
+            Text(en
+              ? 'Photo guidance:\n1. Recommended camera distance: approximately 15 cm from the coffee beans.\n2. Use a dark background.\n3. Use lamp lighting.'
+              : 'Panduan foto:\n1. Disarankan jarak kamera sekitar 15 cm dari biji kopi.\n2. Gunakan latar gelap.\n3. Gunakan pencahayaan lampu.',
+              style: TextStyle(color: p.secondary, fontSize: 15, height: 1.4)),
           ])),
         const SizedBox(height: 22),
         _heading(p, tr(context, 'Tabel nilai cacat')),

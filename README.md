@@ -19,6 +19,7 @@ Rilis awal ditujukan untuk pengujian dan evaluasi. Konfigurasi Android saat ini 
 ## Fitur
 
 - Mengambil foto dengan kamera atau memilih foto dari galeri, termasuk pemotongan foto sebelum analisis.
+- Satu sesi dapat berisi satu atau banyak foto dari galeri maupun kamera. Foto diproses bergiliran, hasil cacat dijumlahkan, dan foto gagal dapat dicoba ulang tanpa memproses ulang foto yang berhasil.
 - Deteksi 21 kelas objek, meliputi biji normal, jenis cacat biji, kulit kopi, kulit tanduk, serta ranting/tanah/batu.
 - Menampilkan kotak deteksi, label, jumlah objek per kelas, nilai cacat, dan estimasi golongan mutu.
 - Menyimpan, mengganti nama, melihat kembali, dan menghapus riwayat pemindaian.
@@ -28,10 +29,11 @@ Rilis awal ditujukan untuk pengujian dan evaluasi. Konfigurasi Android saat ini 
 
 ## Cara menggunakan
 
-1. Letakkan sampel biji kopi pada latar yang kontras dengan pencahayaan merata.
+1. Letakkan sampel biji kopi pada latar gelap dengan pencahayaan lampu. Disarankan jarak kamera sekitar 15 cm dari biji kopi.
 2. Buka menu pindai, ambil foto atau pilih gambar dari galeri, lalu sesuaikan area foto.
-3. Jalankan analisis dan periksa hasil deteksi serta ringkasan nilai cacat.
-4. Simpan hasil untuk ditinjau kembali melalui riwayat, atau simpan gambar hasil deteksi.
+3. Tambahkan foto lewat ikon galeri/kamera bila diperlukan. Setiap foto harus berisi bagian sampel yang berbeda agar biji yang sama tidak terhitung dua kali.
+4. Jalankan analisis dan periksa hasil deteksi serta ringkasan nilai cacat gabungan. Ketuk thumbnail atau geser gambar untuk melihat foto lain.
+5. Simpan seluruh sesi sebagai satu entri riwayat. Tombol unduh mengekspor foto yang sedang dipilih.
 
 Hasil aplikasi merupakan estimasi visual dari objek dalam foto. Perhitungan mutu tidak menggantikan pengujian SNI lengkap: bobot contoh uji 300 g, kadar air, bau, dan persyaratan lain tetap perlu diperiksa. Pencahayaan, posisi objek, tumpang tindih, dan kualitas foto dapat memengaruhi hasil deteksi.
 
@@ -54,9 +56,9 @@ flutter test
 flutter build apk --release
 ```
 
-APK hasil build berada di `build/app/outputs/flutter-apk/app-release.apk`. Versi aplikasi saat ini adalah `1.0.0+1`.
+APK hasil build berada di `build/app/outputs/flutter-apk/app-release.apk`. Versi aplikasi saat ini adalah `1.0.1+2` (tag `v1.0.1`).
 
-Pengujian yang tersedia mencakup pemotongan gambar, decoder keluaran YOLO, perhitungan nilai cacat dan mutu, IoU, serta dialog penggantian nama riwayat. Kamera, inferensi model pada perangkat, dan ekspor gambar perlu diuji langsung pada perangkat Android.
+Pengujian yang tersedia mencakup pemotongan gambar, decoder keluaran YOLO, perhitungan nilai cacat dan mutu, IoU, dialog penggantian nama riwayat, rekap 110 foto, penyimpanan dan penghapusan sesi banyak foto, serta pengulangan foto gagal. Kamera, inferensi model pada perangkat, dan ekspor gambar perlu diuji langsung pada perangkat Android.
 
 ## Struktur proyek
 

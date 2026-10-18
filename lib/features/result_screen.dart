@@ -35,13 +35,15 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen> {
   late bool boxes = widget.boxes, labels = widget.labels;
   bool didSave = false, downloading = false;
+  int selectedPhoto = 0;
+  ScanRecord get currentPhoto => widget.record.photos[selectedPhoto];
 
   Future<void> _downloadImage() async {
     if (downloading) return;
     final english = isEnglish(context);
     setState(() => downloading = true);
     try {
-      final record = widget.record;
+      final record = currentPhoto;
       final targetWidth = record.width.clamp(1, 1600);
       final targetHeight = (targetWidth * record.height / record.width).round();
       final bytes = await File(record.imagePath).readAsBytes();
@@ -105,9 +107,11 @@ class _ResultScreenState extends State<ResultScreen> {
   @override
   void dispose() {
     if (!widget.saved && !didSave) {
-      File(widget.record.imagePath)
-          .delete()
-          .catchError((Object _) => File(widget.record.imagePath));
+      for (final photo in widget.record.photos) {
+        File(photo.imagePath)
+            .delete()
+            .catchError((Object _) => File(photo.imagePath));
+      }
     }
     super.dispose();
   }
@@ -115,6 +119,7 @@ class _ResultScreenState extends State<ResultScreen> {
   @override
   Widget build(BuildContext context) {
     final record = widget.record;
+    final imageRecord = currentPhoto;
     final p = MutcoPalette.of(context);
     final counts = record.counts.entries.where((e) => e.key != 17).toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -159,16 +164,31 @@ class _ResultScreenState extends State<ResultScreen> {
                         maxHeight: MediaQuery.sizeOf(context).height * .45,
                       ),
                       child: AspectRatio(
-                        aspectRatio: record.width / record.height,
+                        aspectRatio: imageRecord.width / imageRecord.height,
                         child: Stack(
                           children: [
                             Positioned.fill(
                               child: GestureDetector(
+                                onHorizontalDragEnd: record.photoCount > 1
+                                    ? (details) {
+                                        final velocity =
+                                            details.primaryVelocity ?? 0;
+                                        if (velocity.abs() < 100) return;
+                                        final next =
+                                            (selectedPhoto +
+                                                    (velocity < 0 ? 1 : -1))
+                                                .clamp(
+                                                  0,
+                                                  record.photoCount - 1,
+                                                );
+                                        setState(() => selectedPhoto = next);
+                                      }
+                                    : null,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => _ZoomScreen(
-                                      record: record,
+                                      record: imageRecord,
                                       boxes: boxes,
                                       labels: labels,
                                       onBoxes: (v) {
@@ -183,7 +203,7 @@ class _ResultScreenState extends State<ResultScreen> {
                                   ),
                                 ),
                                 child: DetectionImage(
-                                  record: record,
+                                  record: imageRecord,
                                   boxes: boxes,
                                   labels: labels,
                                 ),
@@ -223,7 +243,7 @@ class _ResultScreenState extends State<ResultScreen> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) => _ZoomScreen(
-                                          record: record,
+                                          record: imageRecord,
                                           boxes: boxes,
                                           labels: labels,
                                           onBoxes: (v) {
@@ -247,6 +267,56 @@ class _ResultScreenState extends State<ResultScreen> {
                       ),
                     ),
                   ),
+                  if (record.photoCount > 1) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      isEnglish(context)
+                          ? 'Combined results | ${record.photoCount} photos'
+                          : 'Hasil gabungan | ${record.photoCount} foto',
+                      style: TextStyle(
+                        color: p.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      isEnglish(context)
+                          ? 'Photo ${selectedPhoto + 1}/${record.photoCount} | ${imageRecord.detections.length} objects in this photo'
+                          : 'Foto ${selectedPhoto + 1}/${record.photoCount} | ${imageRecord.detections.length} objek di foto ini',
+                      style: TextStyle(color: p.secondary, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 68,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: record.photoCount,
+                        itemBuilder: (context, index) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => setState(() => selectedPhoto = index),
+                            child: Container(
+                              width: 68,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: selectedPhoto == index
+                                      ? p.accent
+                                      : p.separator,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Image.file(
+                                File(record.photos[index].imagePath),
+                                fit: BoxFit.cover,
+                                cacheWidth: 140,
+                                errorBuilder: (_, _, _) =>
+                                    const Icon(Icons.broken_image_outlined),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(17),
@@ -325,7 +395,7 @@ class _ResultScreenState extends State<ResultScreen> {
                             p,
                             width,
                             tr(context, 'Inferensi'),
-                            '${record.inferenceMs}',
+                            '${record.totalInferenceMs}',
                             'ms',
                           ),
                           _stat(

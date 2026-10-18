@@ -234,7 +234,7 @@ class RecordTile extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Total: ${record.total}   |   ${tr(context, 'Cacat')}: ${record.defective}',
+                          '${record.photoCount > 1 ? '${record.photoCount} ${isEnglish(context) ? 'photos' : 'foto'} | ' : ''}Total: ${record.total}   |   ${tr(context, 'Cacat')}: ${record.defective}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

@@ -47,6 +47,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   CameraController? camera;
   String? error, photo;
   bool busy = false, flash = false, picking = false, initializing = false;
+  final photos = <String>[];
+  final completed = <String, ScanRecord>{};
+  int processed = 0;
+  bool transferred = false;
+  final sessionId = DateTime.now().microsecondsSinceEpoch.toString();
+  int nextImageId = 0;
   CameraRatio ratio = CameraRatio.portrait;
 
   @override
@@ -60,6 +66,13 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     camera?.dispose();
+    if (!transferred) {
+      for (final record in completed.values) {
+        File(record.imagePath)
+            .delete()
+            .catchError((Object _) => File(record.imagePath));
+      }
+    }
     super.dispose();
   }
 
@@ -145,7 +158,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         image.path,
         ratio.portraitRatio,
       ));
-      if (mounted) setState(() => photo = path);
+      if (mounted) {
+        setState(() {
+          photos.add(path);
+          photo = path;
+        });
+      }
     } catch (e) {
       if (mounted) {
         _message(
@@ -156,10 +174,18 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _gallery() async {
+    if (picking || busy) return;
     picking = true;
     try {
-      final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (picked != null && mounted) setState(() => photo = picked.path);
+      final picked = await ImagePicker().pickMultiImage();
+      if (picked.isNotEmpty && mounted) {
+        setState(() {
+          for (final image in picked) {
+            if (!photos.contains(image.path)) photos.add(image.path);
+          }
+          photo = photos.last;
+        });
+      }
     } catch (e) {
       if (mounted) {
         _message(
@@ -217,48 +243,125 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _removePhoto(String path) async {
+    final record = completed.remove(path);
+    setState(() {
+      photos.remove(path);
+      photo = photos.isEmpty ? null : photos.last;
+    });
+    if (record != null) {
+      final file = File(record.imagePath);
+      if (await file.exists()) await file.delete();
+    }
+    if (mounted && photo == null && camera == null) await _initCamera();
+  }
+
   Future<void> _analyze() async {
-    final source = photo;
-    if (source == null || busy) return;
+    if (photos.isEmpty || busy) return;
     final english = isEnglish(context);
-    setState(() => busy = true);
-    String? persisted;
+    setState(() {
+      busy = true;
+      processed = 0;
+    });
+    final failed = <int>[];
     try {
       final old = camera;
       camera = null;
       await old?.dispose();
-      final id = DateTime.now().microsecondsSinceEpoch.toString();
-      persisted = await widget.repository.persistImage(source, id);
-      final result = await widget.inference.detect(
-        persisted,
-        widget.threshold,
-        widget.iouThreshold,
-      );
-      final now = DateTime.now();
-      final record = ScanRecord(
-        id: id,
-        name:
-            '${english ? 'Sample' : 'Sampel'} ${now.day}/${now.month}/${now.year}',
-        date: now,
-        imagePath: persisted,
-        width: result.width,
-        height: result.height,
-        detections: result.detections,
-        threshold: widget.threshold,
-        iouThreshold: widget.iouThreshold,
-        inferenceMs: result.inferenceMs,
-        postprocessMs: result.postprocessMs,
-      );
-      if (mounted) widget.onResult(record);
-    } catch (e) {
-      if (persisted != null) {
-        final file = File(persisted);
-        if (await file.exists()) await file.delete();
+      for (var index = 0; index < photos.length; index++) {
+        if (!mounted) return;
+        setState(() => processed = index + 1);
+        final source = photos[index];
+        if (completed.containsKey(source)) continue;
+        String? persisted;
+        try {
+          final id = '${sessionId}_${nextImageId++}';
+          persisted = await widget.repository.persistImage(source, id);
+          if (!mounted) {
+            await File(persisted).delete();
+            return;
+          }
+          final result = await widget.inference.detect(
+            persisted,
+            widget.threshold,
+            widget.iouThreshold,
+          );
+          if (!mounted) {
+            await File(persisted).delete();
+            return;
+          }
+          final now = DateTime.now();
+          completed[source] = ScanRecord(
+            id: id,
+            name:
+                '${english ? 'Sample' : 'Sampel'} ${now.day}/${now.month}/${now.year}',
+            date: now,
+            imagePath: persisted,
+            width: result.width,
+            height: result.height,
+            detections: result.detections,
+            threshold: widget.threshold,
+            iouThreshold: widget.iouThreshold,
+            inferenceMs: result.inferenceMs,
+            postprocessMs: result.postprocessMs,
+          );
+        } catch (_) {
+          if (persisted != null) {
+            final file = File(persisted);
+            if (await file.exists()) await file.delete();
+          }
+          failed.add(index + 1);
+        }
       }
-      if (mounted) {
-        _message(
-          '${isEnglish(context) ? 'Analysis failed' : 'Analisis gagal'}: $e',
+      if (!mounted) return;
+      if (failed.isNotEmpty) {
+        setState(() => busy = false);
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              english ? 'Analysis incomplete' : 'Analisis belum lengkap',
+            ),
+            content: Text(
+              english
+                  ? '${completed.length}/${photos.length} photos succeeded. Failed photos: ${failed.join(', ')}. Tap Analyze again to retry failed photos, or remove them.'
+                  : '${completed.length}/${photos.length} foto berhasil. Foto gagal: ${failed.join(', ')}. Tekan Analisis lagi untuk mengulang foto yang gagal, atau hapus foto tersebut.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
         );
+        return;
+      }
+      final first = completed[photos.first]!;
+      final record = ScanRecord(
+        id: sessionId,
+        name: first.name,
+        date: first.date,
+        imagePath: first.imagePath,
+        width: first.width,
+        height: first.height,
+        detections: first.detections,
+        threshold: first.threshold,
+        iouThreshold: first.iouThreshold,
+        inferenceMs: first.inferenceMs,
+        postprocessMs: first.postprocessMs,
+        additionalPhotos: photos
+            .skip(1)
+            .map((path) => completed[path]!)
+            .toList(),
+      );
+      transferred = true;
+      // Remove the scan route so returning from results cannot reuse deleted images.
+      Navigator.pop(context);
+      widget.onResult(record);
+    } catch (e) {
+      if (mounted) {
+        _message('${english ? 'Analysis failed' : 'Analisis gagal'}: $e');
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -278,53 +381,58 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     final p = MutcoPalette.of(context);
     final controlSurface = p.dark ? p.surfaceAlt : const Color(0xffe1e1df);
     if (busy) {
-      return Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 148,
-                  height: 148,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox.expand(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 5,
-                          color: p.accent,
-                          backgroundColor: p.surfaceAlt,
+      return PopScope(
+        canPop: false,
+        child: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 148,
+                    height: 148,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox.expand(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 5,
+                            color: p.accent,
+                            backgroundColor: p.surfaceAlt,
+                          ),
                         ),
-                      ),
-                      Image.asset(
-                        'assets/branding/loading_icon.png',
-                        width: 100,
-                        height: 100,
-                      ),
-                    ],
+                        Image.asset(
+                          'assets/branding/loading_icon.png',
+                          width: 100,
+                          height: 100,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 30),
-                Text(
-                  tr(context, 'Menganalisis biji kopi...'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: p.text,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 30),
+                  Text(
+                    isEnglish(context)
+                        ? 'Processing $processed of ${photos.length} photos'
+                        : 'Memproses $processed dari ${photos.length} foto',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: p.text,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  tr(
-                    context,
-                    'Mendeteksi biji dan cacat\nMohon tunggu sebentar',
+                  const SizedBox(height: 9),
+                  Text(
+                    tr(
+                      context,
+                      'Mendeteksi biji dan cacat\nMohon tunggu sebentar',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: p.secondary, fontSize: 16),
                   ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: p.secondary, fontSize: 16),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -445,6 +553,106 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
+            if (photos.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        isEnglish(context)
+                            ? '${photos.length} photos | Different beans in each photo'
+                            : '${photos.length} foto | Biji berbeda di tiap foto',
+                        style: TextStyle(color: p.secondary, fontSize: 12),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _gallery,
+                      tooltip: isEnglish(context)
+                          ? 'Add from gallery'
+                          : 'Tambah dari galeri',
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                    ),
+                    IconButton(
+                      onPressed: _retry,
+                      tooltip: isEnglish(context)
+                          ? 'Add camera photo'
+                          : 'Tambah foto kamera',
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 76,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: photos.length,
+                  itemBuilder: (context, index) {
+                    final path = photos[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() => photo = path),
+                        child: Container(
+                          width: 76,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: photo == path ? p.accent : p.separator,
+                              width: 2,
+                            ),
+                          ),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                File(path),
+                                fit: BoxFit.cover,
+                                cacheWidth: 150,
+                                errorBuilder: (_, _, _) =>
+                                    const Icon(Icons.broken_image_outlined),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: SizedBox(
+                                  width: 32,
+                                  height: 32,
+                                  child: IconButton.filled(
+                                    padding: EdgeInsets.zero,
+                                    iconSize: 18,
+                                    tooltip: isEnglish(context)
+                                        ? 'Remove photo'
+                                        : 'Hapus foto',
+                                    onPressed: () => _removePhoto(path),
+                                    icon: const Icon(Icons.close),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 2,
+                                bottom: 2,
+                                child: Container(
+                                  color: Colors.black54,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 3,
+                                  ),
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             SizedBox(
               height: 104,
               child: Padding(
@@ -484,10 +692,18 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                             ),
                           ),
                           IconButton(
-                            onPressed: _switchCamera,
-                            tooltip: tr(context, 'Ganti kamera'),
+                            onPressed: photos.isEmpty
+                                ? _switchCamera
+                                : _analyze,
+                            tooltip: photos.isEmpty
+                                ? tr(context, 'Ganti kamera')
+                                : (isEnglish(context)
+                                      ? 'Analyze all photos'
+                                      : 'Analisis semua foto'),
                             icon: Icon(
-                              Icons.cameraswitch_outlined,
+                              photos.isEmpty
+                                  ? Icons.cameraswitch_outlined
+                                  : Icons.check,
                               color: p.text,
                               size: 29,
                             ),
@@ -504,7 +720,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                                 backgroundColor: controlSurface,
                                 foregroundColor: p.text,
                               ),
-                              child: Text(tr(context, 'Ulangi')),
+                              child: Text(
+                                isEnglish(context)
+                                    ? 'Add photo'
+                                    : 'Tambah foto',
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -514,7 +734,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                               style: FilledButton.styleFrom(
                                 minimumSize: const Size(0, 54),
                               ),
-                              child: Text(tr(context, 'Gunakan Foto')),
+                              child: Text(
+                                isEnglish(context)
+                                    ? 'Analyze (${photos.length})'
+                                    : 'Analisis (${photos.length})',
+                              ),
                             ),
                           ),
                         ],
