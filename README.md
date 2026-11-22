@@ -56,7 +56,7 @@ flutter test
 flutter build apk --release
 ```
 
-APK hasil build berada di `build/app/outputs/flutter-apk/app-release.apk`. Versi aplikasi saat ini adalah `1.0.1+2` (tag `v1.0.1`).
+APK hasil build berada di `build/app/outputs/flutter-apk/app-release.apk`. Versi aplikasi untuk kode ini adalah `1.1.0` (build `3`).
 
 Pengujian yang tersedia mencakup pemotongan gambar, decoder keluaran YOLO, perhitungan nilai cacat dan mutu, IoU, dialog penggantian nama riwayat, rekap 110 foto, penyimpanan dan penghapusan sesi banyak foto, serta pengulangan foto gagal. Kamera, inferensi model pada perangkat, dan ekspor gambar perlu diuji langsung pada perangkat Android.
 
