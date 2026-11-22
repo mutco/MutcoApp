@@ -17,7 +17,7 @@ enum DetectionModel {
   ),
   v1(
     'v1',
-    'MUTCO V1',
+    'MUTCO v1',
     'assets/models/mutco_yolo11s_best.onnx',
     '8580261a06f055e6783122e1d0c958066a5658227a5d349660881d13dc1c74ad',
     // Original thesis, Tables 4.7 and 4.11: validation of the original ONNX.
