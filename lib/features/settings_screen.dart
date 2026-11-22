@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../app/app_language.dart';
 import '../app/mutco_theme.dart';
+import '../core/detection_model.dart';
 
 class SettingsScreen extends StatefulWidget {
+  final DetectionModel model;
   final bool dark;
   final String language;
   final double threshold;
@@ -13,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
   final Future<void> Function() onResetSettings;
   const SettingsScreen({
     super.key,
+    this.model = DetectionModel.v2,
     required this.dark,
     required this.language,
     required this.threshold,
@@ -26,10 +29,29 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  late DetectionModel model = widget.model;
   late bool dark = widget.dark;
   late String language = widget.language;
   late double threshold = widget.threshold;
   late double iouThreshold = widget.iouThreshold;
+
+  Future<void> _chooseModel() async {
+    final selected = await showModalBottomSheet<DetectionModel>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => _ChoiceSheet<DetectionModel>(
+        title: isEnglish(sheet) ? 'Detection Model' : 'Model Deteksi',
+        current: model,
+        options: [
+          for (final choice in DetectionModel.values)
+            (choice, choice.label, Icons.memory_outlined),
+        ],
+      ),
+    );
+    if (selected == null || selected == model || !mounted) return;
+    await widget.onPreference('detection_model', selected.id);
+    if (mounted) setState(() => model = selected);
+  }
 
   Future<void> _chooseTheme() async {
     final selected = await showModalBottomSheet<bool>(
@@ -109,16 +131,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _row(
               p,
               Icons.memory_outlined,
-              tr(context, 'Model'),
-              'YOLO11s ONNX',
-              () => _info(
-                tr(context, 'Model'),
-                isEnglish(context)
-                    ? 'The YOLO11s ONNX model runs offline on your device. It uses 640 × 640 input and detects 21 coffee bean classes.'
-                    : 'Model YOLO11s ONNX berjalan lokal tanpa internet. Input 640 × 640 dengan 21 kelas biji kopi.',
-              ),
+              isEnglish(context) ? 'Detection Model' : 'Model Deteksi',
+              model.label,
+              _chooseModel,
             ),
           ]),
+          const SizedBox(height: 10),
+          _validationCard(context, p),
           _section(p, tr(context, 'Data')),
           _card(p, [
             _row(
@@ -190,6 +209,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _validationCard(BuildContext context, MutcoPalette p) {
+    final english = isEnglish(context);
+    final validation = model.validation;
+    final heading = english
+        ? 'Model Validation Results'
+        : 'Hasil Validasi Model';
+    final photos = english ? 'validation photos' : 'foto validasi';
+    String percent(double value) {
+      final digits = value.toStringAsFixed(2);
+      return '${english ? digits : digits.replaceFirst('.', ',')}%';
+    }
+
+    Widget metric(String label, double value) => Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: p.secondary, fontSize: 13)),
+          Text(
+            percent(value),
+            style: TextStyle(
+              color: p.text,
+              fontSize: 19,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return _card(p, [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              heading,
+              style: TextStyle(
+                color: p.text,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                metric('Precision', validation.precision),
+                metric('Recall', validation.recall),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                metric('mAP50', validation.map50),
+                metric('mAP50–95', validation.map5095),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'ONNX · ${validation.photos} $photos',
+              style: TextStyle(color: p.secondary, fontSize: 12),
+            ),
+            Text(
+              english
+                  ? 'Each model uses a different validation set.'
+                  : 'Set validasi kedua model berbeda.',
+              style: TextStyle(color: p.secondary, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    ]);
   }
 
   Widget _section(MutcoPalette p, String title) => Padding(
@@ -298,7 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text(
           tr(
             dialog,
-            'Tema, bahasa, ambang deteksi, dan tampilan kotak serta label akan kembali ke bawaan. Riwayat tetap tersimpan.',
+            'Tema, bahasa, model, ambang deteksi, dan tampilan kotak serta label akan kembali ke bawaan. Riwayat tetap tersimpan.',
           ),
         ),
         actions: [
@@ -321,6 +414,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       language = 'id';
       threshold = .25;
       iouThreshold = .70;
+      model = DetectionModel.v2;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(tr(context, 'Pengaturan kembali ke bawaan.'))),

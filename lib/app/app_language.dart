@@ -184,7 +184,7 @@ const _en = <String, String>{
   'Atur Ulang Pengaturan': 'Reset settings',
   'Atur ulang pengaturan?': 'Reset settings?',
   'Atur Ulang': 'Reset',
-  'Tema, bahasa, ambang deteksi, dan tampilan kotak serta label akan kembali ke bawaan. Riwayat tetap tersimpan.': 'Theme, language, detection thresholds, boxes, and labels will return to defaults. Scan history will remain saved.',
+  'Tema, bahasa, model, ambang deteksi, dan tampilan kotak serta label akan kembali ke bawaan. Riwayat tetap tersimpan.': 'Theme, language, model, detection thresholds, boxes, and labels will return to defaults. Scan history will remain saved.',
   'Pengaturan kembali ke bawaan.': 'Settings restored to defaults.',
   'Total nilai cacat': 'Total defect value',
   'Nama saat ini': 'Current name',

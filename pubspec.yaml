@@ -66,6 +66,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/models/mutco_yolo11s_best.onnx
+    - assets/models/mutco_yolo11s_best_6bdfb468bd5c.onnx
+    - assets/models/urutan_kelas.json
+    - assets/models/konfigurasi_aplikasi.json
     - assets/branding/icon.png
     - assets/branding/loading_icon.png
 

@@ -41,6 +41,8 @@ class ScanRecord {
   final List<Detection> detections;
   final double threshold;
   final double iouThreshold;
+  // Records from older app builds did not store model provenance.
+  final String? modelVersion;
   final int inferenceMs, postprocessMs;
   // The first photo keeps the legacy fields; the rest belong to the same session.
   final List<ScanRecord> additionalPhotos;
@@ -60,6 +62,7 @@ class ScanRecord {
     required this.detections,
     required this.threshold,
     this.iouThreshold = 0.7,
+    this.modelVersion,
     required this.inferenceMs,
     required this.postprocessMs,
     this.additionalPhotos = const [],
@@ -94,6 +97,7 @@ class ScanRecord {
     'detections': detections.map((e) => e.toJson()).toList(),
     'threshold': threshold,
     'iouThreshold': iouThreshold,
+    'modelVersion': modelVersion,
     'inferenceMs': inferenceMs,
     'postprocessMs': postprocessMs,
     'additionalPhotos': additionalPhotos
@@ -113,6 +117,7 @@ class ScanRecord {
         .toList(),
     threshold: (json['threshold'] as num).toDouble(),
     iouThreshold: (json['iouThreshold'] as num?)?.toDouble() ?? 0.45,
+    modelVersion: json['modelVersion'] as String?,
     inferenceMs: json['inferenceMs'] as int,
     postprocessMs: json['postprocessMs'] as int,
     additionalPhotos: (json['additionalPhotos'] as List? ?? [])

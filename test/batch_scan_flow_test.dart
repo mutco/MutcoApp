@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:mutco/data/local_repository.dart';
+import 'package:mutco/core/detection_model.dart';
 import 'package:mutco/data/scan_record.dart';
 import 'package:mutco/features/scan_screen.dart';
 import 'package:mutco/services/yolo_inference.dart';
@@ -19,6 +20,7 @@ class TestRepository extends LocalRepository {
 }
 
 class TestInference extends YoloInference {
+  TestInference({super.model});
   final calls = <String>[];
   String? failOnce;
   Completer<void>? gate;
@@ -86,7 +88,9 @@ void main() {
         final repository = TestRepository(
           await SharedPreferences.getInstance(),
         );
-        final inference = TestInference();
+        final inference = TestInference(
+          model: retry ? DetectionModel.v1 : DetectionModel.v2,
+        );
         if (retry) inference.failOnce = second.path;
         ScanRecord? result;
         await tester.pumpWidget(
@@ -161,6 +165,13 @@ void main() {
         expect(result!.photoCount, 2);
         expect(result!.total, 2);
         expect(result!.counts, {5: 2});
+        expect(result!.modelVersion, inference.model.id);
+        expect(
+          result!.photos.every(
+            (photo) => photo.modelVersion == inference.model.id,
+          ),
+          isTrue,
+        );
         expect(
           inference.calls,
           retry

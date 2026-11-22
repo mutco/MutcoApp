@@ -302,6 +302,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
             detections: result.detections,
             threshold: widget.threshold,
             iouThreshold: widget.iouThreshold,
+            modelVersion: widget.inference.model.id,
             inferenceMs: result.inferenceMs,
             postprocessMs: result.postprocessMs,
           );
@@ -348,6 +349,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         detections: first.detections,
         threshold: first.threshold,
         iouThreshold: first.iouThreshold,
+        modelVersion: first.modelVersion,
         inferenceMs: first.inferenceMs,
         postprocessMs: first.postprocessMs,
         additionalPhotos: photos
@@ -504,6 +506,13 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                       ),
                     ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '${tr(context, 'Model')}: ${widget.inference.model.label}',
+                style: TextStyle(color: p.secondary, fontSize: 13),
               ),
             ),
             Expanded(

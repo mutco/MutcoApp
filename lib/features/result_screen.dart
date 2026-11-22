@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../app/mutco_theme.dart';
 import '../app/app_language.dart';
 import '../core/coffee_classes.dart';
+import '../core/detection_model.dart';
 import '../data/scan_record.dart';
 
 class ResultScreen extends StatefulWidget {
@@ -363,6 +364,14 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '${tr(context, 'Model')}: '
+                      '${DetectionModel.fromId(record.modelVersion)?.label ?? (isEnglish(context) ? 'Not recorded' : 'Tidak tercatat')}',
+                      style: TextStyle(color: p.secondary, fontSize: 14),
+                    ),
+                  ),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final width = (constraints.maxWidth - 10) / 2;
@@ -714,7 +723,7 @@ class _DetectionPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
         maxLines: 1,
-        ellipsis: '…',
+        ellipsis: 'â€¦',
       )..layout(maxWidth: size.width * .38);
       final labelWidth = text.width + 4 * scale;
       final labelHeight = text.height + 2 * scale;
@@ -797,8 +806,8 @@ class _ZoomScreenState extends State<_ZoomScreen> {
             Text(tr(context, 'Gambar Diperbesar')),
             Text(
               isEnglish(context)
-                  ? '${widget.record.total} beans · ${widget.record.defective} defective'
-                  : '${widget.record.total} biji · ${widget.record.defective} biji cacat',
+                  ? '${widget.record.total} beans Â· ${widget.record.defective} defective'
+                  : '${widget.record.total} biji Â· ${widget.record.defective} biji cacat',
               style: TextStyle(color: p.secondary, fontSize: 13),
             ),
           ],

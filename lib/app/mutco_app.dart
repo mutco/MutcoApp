@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/detection_model.dart';
 import '../data/local_repository.dart';
 import '../data/scan_record.dart';
 import '../features/home_screen.dart';
@@ -27,7 +28,8 @@ class MutcoApp extends StatefulWidget {
 
 class _MutcoAppState extends State<MutcoApp> {
   static const nativeTheme = MethodChannel('com.usk.mutco/theme');
-  final inference = YoloInference();
+  late YoloInference inference;
+  DetectionModel selectedModel = DetectionModel.v2;
   final navigatorKey = GlobalKey<NavigatorState>();
   static final lightTheme = MutcoTheme.create(MutcoPalette.light);
   static final darkTheme = MutcoTheme.create(MutcoPalette.night);
@@ -42,6 +44,10 @@ class _MutcoAppState extends State<MutcoApp> {
   @override
   void initState() {
     super.initState();
+    selectedModel =
+        DetectionModel.fromId(widget.prefs.getString('detection_model')) ??
+        DetectionModel.v2;
+    inference = YoloInference(model: selectedModel);
     records = widget.repository.records;
     dark = widget.prefs.getBool('dark') ?? false;
     showBoxes = widget.prefs.getBool('show_boxes') ?? true;
@@ -77,7 +83,15 @@ class _MutcoAppState extends State<MutcoApp> {
   }
 
   Future<void> setPreference(String key, Object value) async {
-    if (key == 'dark' && value is bool) {
+    if (key == 'detection_model' && value is String) {
+      final next = DetectionModel.fromId(value);
+      if (next == null) throw ArgumentError.value(value, key);
+      if (next != selectedModel) {
+        await inference.dispose();
+        selectedModel = next;
+        inference = YoloInference(model: next);
+      }
+    } else if (key == 'dark' && value is bool) {
       setState(() => dark = value);
       _systemBars();
     } else if (key == 'show_boxes' && value is bool) {
@@ -103,6 +117,7 @@ class _MutcoAppState extends State<MutcoApp> {
   }
 
   Future<void> resetSettings() async {
+    await setPreference('detection_model', DetectionModel.v2.id);
     await Future.wait([
       widget.prefs.setBool('dark', false),
       widget.prefs.setBool('show_boxes', true),
@@ -186,6 +201,7 @@ class _MutcoAppState extends State<MutcoApp> {
   void openSettings() => navigatorKey.currentState!.push(
     MaterialPageRoute(
       builder: (_) => SettingsScreen(
+        model: selectedModel,
         dark: dark,
         language: language,
         threshold: threshold,

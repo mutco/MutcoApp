@@ -1,0 +1,72 @@
+{
+  "versi_konfigurasi": 1,
+  "nama_model": "Gabungan penuh",
+  "arsitektur": "YOLO11s",
+  "file_model": "mutco_yolo11s_best_6bdfb468bd5c.onnx",
+  "sha256_model": "6bdfb468bd5cec121287cf3f8476d95a1a3d8b00555d26639258e88c1a45cc98",
+  "opset": 18,
+  "jumlah_kelas": 21,
+  "file_urutan_kelas": "urutan_kelas.json",
+  "masukan": {
+    "nama_tensor": "images",
+    "bentuk": [
+      1,
+      3,
+      640,
+      640
+    ],
+    "tipe": "float32",
+    "susunan": "NCHW",
+    "urutan_warna": "RGB",
+    "normalisasi": "nilai_kanal / 255.0"
+  },
+  "praproses": {
+    "orientasi": "sesuaikan orientasi foto sebelum letterbox",
+    "metode": "letterbox",
+    "ukuran_akhir": [
+      640,
+      640
+    ],
+    "pertahankan_rasio_aspek": true,
+    "padding_rgb": [
+      114,
+      114,
+      114
+    ],
+    "catatan": "Catat skala dan padding aktual untuk mengembalikan koordinat kotak ke foto."
+  },
+  "keluaran": {
+    "nama_tensor": "output0",
+    "bentuk": [
+      1,
+      25,
+      8400
+    ],
+    "tipe": "float32",
+    "susunan": "[batch, kanal, kandidat]",
+    "kanal_0_sampai_3": [
+      "center_x",
+      "center_y",
+      "width",
+      "height"
+    ],
+    "satuan_kotak": "piksel pada masukan 640 x 640",
+    "kanal_4_sampai_24": "21 skor kelas sesuai urutan_kelas.json",
+    "objectness_terpisah": false,
+    "nms_tertanam": false
+  },
+  "pascaproses": {
+    "pemilihan_kelas": "skor kelas tertinggi per kandidat",
+    "confidence": 0.25,
+    "iou_nms": 0.7,
+    "class_agnostic_nms": true,
+    "max_det": 300,
+    "format_kotak_untuk_nms": "xyxy",
+    "koordinat_hasil": "dikembalikan ke foto dan dibatasi pada tepi foto"
+  },
+  "catatan_evaluasi": {
+    "confidence_evaluasi_map": 0.001,
+    "confidence_awal_aplikasi": 0.25,
+    "pengujian_android": "belum dilakukan"
+  }
+}
