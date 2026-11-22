@@ -9,7 +9,7 @@ typedef ModelValidation = ({
 enum DetectionModel {
   v2(
     'v2',
-    'MUTCO V2',
+    'MUTCO v2',
     'assets/models/mutco_yolo11s_best_6bdfb468bd5c.onnx',
     '6bdfb468bd5cec121287cf3f8476d95a1a3d8b00555d26639258e88c1a45cc98',
     // SEL 114: evaluation of the exported ONNX on the revised validation set.
